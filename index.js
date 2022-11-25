@@ -32,7 +32,12 @@ async function run() {
 
     //------------------------ Products -------------------------
     app.get('/products/:id', async (req, res) => {
-      const cursor = productsCollection.find({ categoryId: req.params.id });
+      let cursor;
+      if (req.params.id === '638088dc7d29c05a063ca3df') {
+        cursor = productsCollection.find({});
+      } else {
+        cursor = productsCollection.find({ categoryId: req.params.id });
+      }
       const products = await cursor.toArray();
       res.send(products);
     });
