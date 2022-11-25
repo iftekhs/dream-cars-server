@@ -16,8 +16,39 @@ async function run() {
   //------------------------ Collections -------------------------
   const categoriesCollection = client.db('DreamCars').collection('categories');
   const productsCollection = client.db('DreamCars').collection('products');
+  const usersCollection = client.db('DreamCars').collection('users');
 
   try {
+    //------------------------ Guards -------------------------
+    function verifyJWT(req, res, next) {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).send('unauthorized access');
+      }
+
+      const token = authHeader.split(' ')[1];
+
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+        if (err) {
+          return res.status(403).send({ message: 'forbidden access' });
+        }
+        req.decoded = decoded;
+        next();
+      });
+    }
+
+    const verifyAdmin = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+
+      if (user?.role !== 'admin') {
+        return res.status(403).send({ message: 'forbidden access' });
+      }
+      next();
+    };
+    //------------------------ Guards -------------------------
+
     //------------------------ Categories -------------------------
     app.get('/categories', async (req, res) => {
       const cursor = categoriesCollection.find({});
@@ -42,6 +73,40 @@ async function run() {
       res.send(products);
     });
     //------------------------ Products -------------------------
+
+    //------------------------ Users -------------------------
+    app.post('/users', async (req, res) => {
+      const user = req.body;
+      const savedUser = await usersCollection.findOne({ email: user.email });
+      if (savedUser) {
+        return res.send({ acknowledged: false });
+      }
+      if (!user.type) {
+        user.type = 'user';
+      }
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+    //------------------------ Users -------------------------
+
+    //------------------------ Ads -------------------------
+    app.get('/ads', async (req, res) => {
+      res.send([]);
+    });
+    //------------------------ Ads -------------------------
+
+    //------------------------ Authentication -------------------------
+    app.post('/jwt', async (req, res) => {
+      const email = req.body.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user) {
+        const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '10h' });
+        return res.send({ accessToken: token });
+      }
+      res.status(403).send({ accessToken: '' });
+    });
+    //------------------------ Authentication -------------------------
   } finally {
   }
 }
