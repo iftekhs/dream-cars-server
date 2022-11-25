@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 
@@ -15,13 +15,28 @@ const client = new MongoClient(process.env.MONGODB_CONNECTION_URI);
 async function run() {
   //------------------------ Collections -------------------------
   const categoriesCollection = client.db('DreamCars').collection('categories');
+  const productsCollection = client.db('DreamCars').collection('products');
 
   try {
+    //------------------------ Categories -------------------------
     app.get('/categories', async (req, res) => {
       const cursor = categoriesCollection.find({});
       const categories = await cursor.toArray();
       res.send(categories);
     });
+    app.get('/category/:id', async (req, res) => {
+      const category = await categoriesCollection.findOne({ _id: ObjectId(req.params.id) });
+      res.send(category);
+    });
+    //------------------------ Categories -------------------------
+
+    //------------------------ Products -------------------------
+    app.get('/products/:id', async (req, res) => {
+      const cursor = productsCollection.find({ categoryId: req.params.id });
+      const products = await cursor.toArray();
+      res.send(products);
+    });
+    //------------------------ Products -------------------------
   } finally {
   }
 }
