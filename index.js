@@ -86,6 +86,15 @@ async function run() {
     //------------------------ Bookings -------------------------
 
     //------------------------ Users -------------------------
+    app.get('/users/:email', async (req, res) => {
+      const user = await usersCollection.findOne({ email: req.params.email });
+      if (user) {
+        return res.send({ role: user.role });
+      }
+      res.status(404).send({ message: 'No user found' });
+    });
+
+    
     app.post('/users', async (req, res) => {
       const user = req.body;
       const savedUser = await usersCollection.findOne({ email: user.email });
