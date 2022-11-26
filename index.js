@@ -17,6 +17,7 @@ async function run() {
   const categoriesCollection = client.db('DreamCars').collection('categories');
   const productsCollection = client.db('DreamCars').collection('products');
   const usersCollection = client.db('DreamCars').collection('users');
+  const bookingsCollection = client.db('DreamCars').collection('bookings');
 
   try {
     //------------------------ Guards -------------------------
@@ -74,6 +75,16 @@ async function run() {
     });
     //------------------------ Products -------------------------
 
+    //------------------------ Bookings -------------------------
+    app.post('/bookings', verifyJWT, async (req, res) => {
+      const user = req.decoded;
+      const booking = req.body;
+      booking.userEmail = user.email;
+      const result = await bookingsCollection.insertOne(booking);
+      res.send(result);
+    });
+    //------------------------ Bookings -------------------------
+
     //------------------------ Users -------------------------
     app.post('/users', async (req, res) => {
       const user = req.body;
@@ -81,8 +92,8 @@ async function run() {
       if (savedUser) {
         return res.send({ acknowledged: false });
       }
-      if (!user.type) {
-        user.type = 'user';
+      if (!user.role) {
+        user.role = 'user';
       }
       const result = await usersCollection.insertOne(user);
       res.send(result);
@@ -101,7 +112,7 @@ async function run() {
       const query = { email: email };
       const user = await usersCollection.findOne(query);
       if (user) {
-        const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '10h' });
+        const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET);
         return res.send({ accessToken: token });
       }
       res.status(403).send({ accessToken: '' });
