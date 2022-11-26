@@ -75,6 +75,14 @@ async function run() {
     //------------------------ Categories -------------------------
 
     //------------------------ Products -------------------------
+    app.post('/products', verifyJWT, async (req, res) => {
+      const user = req.decoded;
+      const product = req.body;
+      product.userEmail = user.email;
+      const result = await productsCollection.insertOne(product);
+      res.send(result);
+    });
+
     app.get('/products/:id', async (req, res) => {
       let cursor;
       if (req.params.id === '638088dc7d29c05a063ca3df') {
