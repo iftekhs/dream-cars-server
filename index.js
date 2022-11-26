@@ -48,6 +48,18 @@ async function run() {
       }
       next();
     };
+
+    const verifySeller = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+
+      if (user?.role !== 'seller') {
+        return res.status(403).send({ message: 'forbidden access' });
+      }
+      next();
+    };
+
     //------------------------ Guards -------------------------
 
     //------------------------ Categories -------------------------
@@ -94,7 +106,6 @@ async function run() {
       res.status(404).send({ message: 'No user found' });
     });
 
-    
     app.post('/users', async (req, res) => {
       const user = req.body;
       const savedUser = await usersCollection.findOne({ email: user.email });
