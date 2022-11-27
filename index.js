@@ -123,6 +123,11 @@ async function run() {
       res.send(products);
     });
 
+    app.get('/products/find/:id', async (req, res) => {
+      const product = await productsCollection.findOne({ _id: ObjectId(req.params.id) });
+      res.send(product);
+    });
+
     app.delete('/products/:id', verifyJWT, verifySeller, async (req, res) => {
       const user = req.decoded;
       const id = req.params.id;
@@ -147,9 +152,16 @@ async function run() {
       if (!user) {
         return res.status(404).send({ message: 'No User Found' });
       }
-      const cursor = productsCollection.find({ userEmail: user.email });
+      const cursor = bookingsCollection.find({ userEmail: user.email });
       const products = await cursor.toArray();
       res.send(products);
+    });
+
+    app.get('/bookings/find/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const booking = await bookingsCollection.findOne(query);
+      res.send(booking);
     });
     //------------------------ Bookings -------------------------
 
