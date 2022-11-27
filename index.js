@@ -18,6 +18,7 @@ async function run() {
   const productsCollection = client.db('DreamCars').collection('products');
   const usersCollection = client.db('DreamCars').collection('users');
   const bookingsCollection = client.db('DreamCars').collection('bookings');
+  const wishlistsCollection = client.db('DreamCars').collection('wishlists');
 
   try {
     //------------------------ Guards -------------------------
@@ -136,9 +137,19 @@ async function run() {
       const user = req.decoded;
       const booking = req.body;
       booking.userEmail = user.email;
-      booking.userVerified = user.verified;
+      booking.status = 'unpaid';
       const result = await bookingsCollection.insertOne(booking);
       res.send(result);
+    });
+
+    app.get('/bookings/:email', async (req, res) => {
+      const user = await usersCollection.findOne({ email: req.params.email });
+      if (!user) {
+        return res.status(404).send({ message: 'No User Found' });
+      }
+      const cursor = productsCollection.find({ userEmail: user.email });
+      const products = await cursor.toArray();
+      res.send(products);
     });
     //------------------------ Bookings -------------------------
 
@@ -147,6 +158,15 @@ async function run() {
       const user = await usersCollection.findOne({ email: req.params.email });
       if (user) {
         return res.send({ role: user.role });
+      }
+      res.status(404).send({ message: 'No user found' });
+    });
+
+    app.get('/users/verified/:email', async (req, res) => {
+      console.log(req.params.email);
+      const user = await usersCollection.findOne({ email: req.params.email });
+      if (user) {
+        return res.send({ verified: user.verified });
       }
       res.status(404).send({ message: 'No user found' });
     });
@@ -177,6 +197,20 @@ async function run() {
       res.send(result);
     });
 
+    app.patch('/users/sellers/:email', verifyJWT, verifyAdmin, async (req, res) => {
+      const query = {
+        email: req.params.email,
+        role: 'seller',
+      };
+      const updatedDoc = {
+        $set: {
+          verified: req.body.verified,
+        },
+      };
+      const result = await usersCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
     app.delete('/users/:id', verifyJWT, verifyAdmin, async (req, res) => {
       const user = await usersCollection.findOne({ _id: ObjectId(req.params.id) });
       productsCollection.deleteMany({ userEmail: user.email });
@@ -193,6 +227,16 @@ async function run() {
       res.send(products);
     });
     //------------------------ Ads -------------------------
+
+    //------------------------ WISHLISTS -------------------------
+    app.post('/wishlists', verifyJWT, async (req, res) => {
+      const user = req.decoded;
+      const wishlist = req.body;
+      wishlist.userEmail = user.email;
+      const result = await wishlistsCollection.insertOne(wishlist);
+      res.send(result);
+    });
+    //------------------------ WISHLISTS -------------------------
 
     //------------------------ Authentication -------------------------
     app.post('/jwt', async (req, res) => {
