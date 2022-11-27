@@ -151,6 +151,18 @@ async function run() {
       res.status(404).send({ message: 'No user found' });
     });
 
+    app.get('/users/all/buyers', async (req, res) => {
+      const cursor = usersCollection.find({ role: 'user' });
+      const users = await cursor.toArray();
+      res.send(users);
+    });
+
+    app.get('/users/all/sellers', async (req, res) => {
+      const cursor = usersCollection.find({ role: 'seller' });
+      const users = await cursor.toArray();
+      res.send(users);
+    });
+
     app.post('/users', async (req, res) => {
       const user = req.body;
       const savedUser = await usersCollection.findOne({ email: user.email });
