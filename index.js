@@ -176,6 +176,12 @@ async function run() {
       const result = await usersCollection.insertOne(user);
       res.send(result);
     });
+
+    app.delete('/users/:id', verifyJWT, verifyAdmin, async (req, res) => {
+      const query = { _id: ObjectId(req.params.id) };
+      const result = await usersCollection.deleteOne(query);
+      res.send(result);
+    });
     //------------------------ Users -------------------------
 
     //------------------------ Ads -------------------------
