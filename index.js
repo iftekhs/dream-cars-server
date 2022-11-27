@@ -75,12 +75,41 @@ async function run() {
     //------------------------ Categories -------------------------
 
     //------------------------ Products -------------------------
-    app.post('/products', verifyJWT, async (req, res) => {
+    app.post('/products', verifyJWT, verifySeller, async (req, res) => {
       const user = req.decoded;
       const product = req.body;
       product.userEmail = user.email;
+      product.status = 'unsold';
+      product.advertise = false;
+      product.createdAt = new Date(Date.now());
       const result = await productsCollection.insertOne(product);
       res.send(result);
+    });
+
+    app.patch('/products/:id', verifyJWT, verifySeller, async (req, res) => {
+      const user = req.decoded;
+      const query = {
+        _id: ObjectId(req.params.id),
+        userEmail: user.email,
+      };
+      const updatedDoc = {
+        $set: {
+          advertise: req.body.advertise,
+        },
+      };
+      const result = await productsCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
+
+    app.get('/products/seller/:sellerEmail', async (req, res) => {
+      const user = await usersCollection.findOne({ email: req.params.sellerEmail, role: 'seller' });
+      console.log(user);
+      if (!user) {
+        return res.status(404).send({ message: 'No Seller Found' });
+      }
+      const cursor = productsCollection.find({ userEmail: user.email });
+      const products = await cursor.toArray();
+      res.send(products);
     });
 
     app.get('/products/:id', async (req, res) => {
@@ -93,6 +122,7 @@ async function run() {
       const products = await cursor.toArray();
       res.send(products);
     });
+
     //------------------------ Products -------------------------
 
     //------------------------ Bookings -------------------------
@@ -100,6 +130,7 @@ async function run() {
       const user = req.decoded;
       const booking = req.body;
       booking.userEmail = user.email;
+      booking.userVerified = user.verified;
       const result = await bookingsCollection.insertOne(booking);
       res.send(result);
     });
@@ -123,6 +154,7 @@ async function run() {
       if (!user.role) {
         user.role = 'user';
       }
+      user.verified = false;
       const result = await usersCollection.insertOne(user);
       res.send(result);
     });
@@ -130,7 +162,9 @@ async function run() {
 
     //------------------------ Ads -------------------------
     app.get('/ads', async (req, res) => {
-      res.send([]);
+      const cursor = productsCollection.find({ advertise: true });
+      const products = await cursor.toArray();
+      res.send(products);
     });
     //------------------------ Ads -------------------------
 
