@@ -3,6 +3,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { MongoClient, ObjectId } = require('mongodb');
 require('dotenv').config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 const app = express();
@@ -19,6 +20,7 @@ async function run() {
   const usersCollection = client.db('DreamCars').collection('users');
   const bookingsCollection = client.db('DreamCars').collection('bookings');
   const wishlistsCollection = client.db('DreamCars').collection('wishlists');
+  const paymentsCollection = client.db('DreamCars').collection('payments');
 
   try {
     //------------------------ Guards -------------------------
@@ -165,6 +167,48 @@ async function run() {
     });
     //------------------------ Bookings -------------------------
 
+    //------------------------ Payments -------------------------
+    app.post('/create-payment-intent', async (req, res) => {
+      const booking = req.body;
+      const price = booking.price;
+      const amount = price * 100;
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        currency: 'usd',
+        amount: amount,
+        payment_method_types: ['card'],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+    app.post('/payments', async (req, res) => {
+      const payment = req.body;
+      const result = await paymentsCollection.insertOne(payment);
+      const id = payment.bookingId;
+      const filter = { _id: ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          status: 'paid',
+          transactionId: payment.transactionId,
+        },
+      };
+      bookingsCollection.updateOne(filter, updatedDoc);
+      productsCollection.updateOne(
+        {
+          _id: ObjectId(payment.productId),
+        },
+        {
+          $set: {
+            status: 'sold',
+          },
+        }
+      );
+      res.send(result);
+    });
+    //------------------------ Payments -------------------------
+
     //------------------------ Users -------------------------
     app.get('/users/:email', async (req, res) => {
       const user = await usersCollection.findOne({ email: req.params.email });
@@ -234,7 +278,7 @@ async function run() {
 
     //------------------------ Ads -------------------------
     app.get('/ads', async (req, res) => {
-      const cursor = productsCollection.find({ advertise: true });
+      const cursor = productsCollection.find({ advertise: true, status: 'unsold' });
       const products = await cursor.toArray();
       res.send(products);
     });
