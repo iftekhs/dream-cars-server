@@ -178,6 +178,8 @@ async function run() {
     });
 
     app.delete('/users/:id', verifyJWT, verifyAdmin, async (req, res) => {
+      const user = await usersCollection.findOne({ _id: ObjectId(req.params.id) });
+      productsCollection.deleteMany({ userEmail: user.email });
       const query = { _id: ObjectId(req.params.id) };
       const result = await usersCollection.deleteOne(query);
       res.send(result);
