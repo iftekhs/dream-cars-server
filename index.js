@@ -103,7 +103,6 @@ async function run() {
 
     app.get('/products/seller/:sellerEmail', async (req, res) => {
       const user = await usersCollection.findOne({ email: req.params.sellerEmail, role: 'seller' });
-      console.log(user);
       if (!user) {
         return res.status(404).send({ message: 'No Seller Found' });
       }
@@ -123,6 +122,13 @@ async function run() {
       res.send(products);
     });
 
+    app.delete('/products/:id', verifyJWT, verifySeller, async (req, res) => {
+      const user = req.decoded;
+      const id = req.params.id;
+      const query = { _id: ObjectId(id), userEmail: user.email };
+      const result = await productsCollection.deleteOne(query);
+      res.send(result);
+    });
     //------------------------ Products -------------------------
 
     //------------------------ Bookings -------------------------
