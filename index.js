@@ -19,7 +19,7 @@ async function run() {
   const productsCollection = client.db('DreamCars').collection('products');
   const usersCollection = client.db('DreamCars').collection('users');
   const bookingsCollection = client.db('DreamCars').collection('bookings');
-  const wishlistsCollection = client.db('DreamCars').collection('wishlists');
+  const reportsCollection = client.db('DreamCars').collection('reports');
   const paymentsCollection = client.db('DreamCars').collection('payments');
 
   try {
@@ -284,15 +284,28 @@ async function run() {
     });
     //------------------------ Ads -------------------------
 
-    //------------------------ WISHLISTS -------------------------
-    app.post('/wishlists', verifyJWT, async (req, res) => {
+    //------------------------ Reports -------------------------
+    app.get('/reports', async (req, res) => {
+      const cursor = reportsCollection.find({});
+      const reports = await cursor.toArray();
+      res.send(reports);
+    });
+
+    app.post('/reports', verifyJWT, async (req, res) => {
       const user = req.decoded;
-      const wishlist = req.body;
-      wishlist.userEmail = user.email;
-      const result = await wishlistsCollection.insertOne(wishlist);
+      const report = req.body;
+      const existingReport = await reportsCollection.findOne({
+        productId: report.productId,
+        userEmail: user.email,
+      });
+      if (existingReport) {
+        return res.send({ message: 'Product already reported' });
+      }
+      report.userEmail = user.email;
+      const result = await reportsCollection.insertOne(report);
       res.send(result);
     });
-    //------------------------ WISHLISTS -------------------------
+    //------------------------ Reports -------------------------
 
     //------------------------ Authentication -------------------------
     app.post('/jwt', async (req, res) => {
