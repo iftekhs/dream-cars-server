@@ -26,6 +26,7 @@ async function run() {
     //------------------------ Guards -------------------------
     function verifyJWT(req, res, next) {
       const authHeader = req.headers.authorization;
+      console.log(req.headers);
       if (!authHeader) {
         return res.status(401).send('unauthorized access');
       }
@@ -62,7 +63,6 @@ async function run() {
       }
       next();
     };
-
     //------------------------ Guards -------------------------
 
     //------------------------ Categories -------------------------
@@ -79,6 +79,38 @@ async function run() {
     //------------------------ Categories -------------------------
 
     //------------------------ Products -------------------------
+    app.get('/products/advertised', async (req, res) => {
+      const cursor = productsCollection.find({ advertise: true, status: 'unsold' });
+      const products = await cursor.toArray();
+      res.send(products);
+    });
+
+    app.get('/products/seller/:sellerEmail', verifyJWT, verifySeller, async (req, res) => {
+      const user = await usersCollection.findOne({ email: req.params.sellerEmail, role: 'seller' });
+      if (!user) {
+        return res.status(404).send({ message: 'No Seller Found' });
+      }
+      const cursor = productsCollection.find({ userEmail: user.email });
+      const products = await cursor.toArray();
+      res.send(products);
+    });
+
+    app.get('/products/:id', verifyJWT, async (req, res) => {
+      let cursor;
+      if (req.params.id === '638088dc7d29c05a063ca3df') {
+        cursor = productsCollection.find({ status: 'unsold' });
+      } else {
+        cursor = productsCollection.find({ categoryId: req.params.id, status: 'unsold' });
+      }
+      const products = await cursor.toArray();
+      res.send(products);
+    });
+
+    app.get('/products/find/:id', async (req, res) => {
+      const product = await productsCollection.findOne({ _id: ObjectId(req.params.id) });
+      res.send(product);
+    });
+
     app.post('/products', verifyJWT, verifySeller, async (req, res) => {
       const user = req.decoded;
       const product = req.body;
@@ -95,6 +127,7 @@ async function run() {
       const query = {
         _id: ObjectId(req.params.id),
         userEmail: user.email,
+        status: 'unsold',
       };
       const updatedDoc = {
         $set: {
@@ -103,32 +136,6 @@ async function run() {
       };
       const result = await productsCollection.updateOne(query, updatedDoc);
       res.send(result);
-    });
-
-    app.get('/products/seller/:sellerEmail', async (req, res) => {
-      const user = await usersCollection.findOne({ email: req.params.sellerEmail, role: 'seller' });
-      if (!user) {
-        return res.status(404).send({ message: 'No Seller Found' });
-      }
-      const cursor = productsCollection.find({ userEmail: user.email });
-      const products = await cursor.toArray();
-      res.send(products);
-    });
-
-    app.get('/products/:id', async (req, res) => {
-      let cursor;
-      if (req.params.id === '638088dc7d29c05a063ca3df') {
-        cursor = productsCollection.find({ status: 'unsold' });
-      } else {
-        cursor = productsCollection.find({ categoryId: req.params.id, status: 'unsold' });
-      }
-      const products = await cursor.toArray();
-      res.send(products);
-    });
-
-    app.get('/products/find/:id', async (req, res) => {
-      const product = await productsCollection.findOne({ _id: ObjectId(req.params.id) });
-      res.send(product);
     });
 
     app.delete('/products/:id', verifyJWT, verifySeller, async (req, res) => {
@@ -141,16 +148,7 @@ async function run() {
     //------------------------ Products -------------------------
 
     //------------------------ Bookings -------------------------
-    app.post('/bookings', verifyJWT, async (req, res) => {
-      const user = req.decoded;
-      const booking = req.body;
-      booking.userEmail = user.email;
-      booking.status = 'unpaid';
-      const result = await bookingsCollection.insertOne(booking);
-      res.send(result);
-    });
-
-    app.get('/bookings/:email', async (req, res) => {
+    app.get('/bookings/:email', verifyJWT, async (req, res) => {
       const user = await usersCollection.findOne({ email: req.params.email });
       if (!user) {
         return res.status(404).send({ message: 'No User Found' });
@@ -166,12 +164,21 @@ async function run() {
       const booking = await bookingsCollection.findOne(query);
       res.send(booking);
     });
+
+    app.post('/bookings', verifyJWT, async (req, res) => {
+      const user = req.decoded;
+      const booking = req.body;
+      booking.userEmail = user.email;
+      booking.status = 'unpaid';
+      const result = await bookingsCollection.insertOne(booking);
+      res.send(result);
+    });
     //------------------------ Bookings -------------------------
 
     //------------------------ Payments -------------------------
     app.post('/create-payment-intent', async (req, res) => {
       const booking = req.body;
-      const price = parseInt(booking.price);
+      const price = parseFloat(booking.price);
       const amount = price * 100;
 
       const paymentIntent = await stripe.paymentIntents.create({
@@ -228,13 +235,13 @@ async function run() {
       res.status(404).send({ message: 'No user found' });
     });
 
-    app.get('/users/all/buyers', async (req, res) => {
+    app.get('/users/all/buyers', verifyJWT, verifyAdmin, async (req, res) => {
       const cursor = usersCollection.find({ role: 'user' });
       const users = await cursor.toArray();
       res.send(users);
     });
 
-    app.get('/users/all/sellers', async (req, res) => {
+    app.get('/users/all/sellers', verifyJWT, verifyAdmin, async (req, res) => {
       const cursor = usersCollection.find({ role: 'seller' });
       const users = await cursor.toArray();
       res.send(users);
@@ -254,7 +261,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch('/users/sellers/:email', verifyJWT, verifyAdmin, async (req, res) => {
+    app.patch('/users/:email', verifyJWT, verifyAdmin, async (req, res) => {
       const query = {
         email: req.params.email,
         role: 'seller',
@@ -277,16 +284,8 @@ async function run() {
     });
     //------------------------ Users -------------------------
 
-    //------------------------ Ads -------------------------
-    app.get('/ads', async (req, res) => {
-      const cursor = productsCollection.find({ advertise: true, status: 'unsold' });
-      const products = await cursor.toArray();
-      res.send(products);
-    });
-    //------------------------ Ads -------------------------
-
     //------------------------ Reports -------------------------
-    app.get('/reports', async (req, res) => {
+    app.get('/reports', verifyJWT, verifyAdmin, async (req, res) => {
       const cursor = reportsCollection.find({});
       const reports = await cursor.toArray();
       res.send(reports);
