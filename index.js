@@ -26,7 +26,6 @@ async function run() {
     //------------------------ Guards -------------------------
     function verifyJWT(req, res, next) {
       const authHeader = req.headers.authorization;
-      console.log(req.headers);
       if (!authHeader) {
         return res.status(401).send('unauthorized access');
       }
