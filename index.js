@@ -71,6 +71,7 @@ async function run() {
       const categories = await cursor.toArray();
       res.send(categories);
     });
+
     app.get('/category/:id', async (req, res) => {
       const category = await categoriesCollection.findOne({ _id: ObjectId(req.params.id) });
       res.send(category);
@@ -117,9 +118,9 @@ async function run() {
     app.get('/products/:id', async (req, res) => {
       let cursor;
       if (req.params.id === '638088dc7d29c05a063ca3df') {
-        cursor = productsCollection.find({});
+        cursor = productsCollection.find({ status: 'unsold' });
       } else {
-        cursor = productsCollection.find({ categoryId: req.params.id });
+        cursor = productsCollection.find({ categoryId: req.params.id, status: 'unsold' });
       }
       const products = await cursor.toArray();
       res.send(products);
@@ -170,7 +171,7 @@ async function run() {
     //------------------------ Payments -------------------------
     app.post('/create-payment-intent', async (req, res) => {
       const booking = req.body;
-      const price = booking.price;
+      const price = parseInt(booking.price);
       const amount = price * 100;
 
       const paymentIntent = await stripe.paymentIntents.create({
@@ -183,6 +184,7 @@ async function run() {
         clientSecret: paymentIntent.client_secret,
       });
     });
+
     app.post('/payments', async (req, res) => {
       const payment = req.body;
       const result = await paymentsCollection.insertOne(payment);
@@ -219,7 +221,6 @@ async function run() {
     });
 
     app.get('/users/verified/:email', async (req, res) => {
-      console.log(req.params.email);
       const user = await usersCollection.findOne({ email: req.params.email });
       if (user) {
         return res.send({ verified: user.verified });
@@ -305,6 +306,16 @@ async function run() {
       const result = await reportsCollection.insertOne(report);
       res.send(result);
     });
+
+    app.delete('/reports', verifyJWT, verifyAdmin, async (req, res) => {
+      const productQuery = { _id: ObjectId(req.body.productId) };
+      const reportQuery = { _id: ObjectId(req.body.reportId) };
+
+      const productResult = await productsCollection.deleteOne(productQuery);
+      const reportResult = await reportsCollection.deleteOne(reportQuery);
+
+      res.send({ productResult, reportResult });
+    });
     //------------------------ Reports -------------------------
 
     //------------------------ Authentication -------------------------
@@ -330,11 +341,3 @@ app.get('/', async (req, res) => {
 });
 
 app.listen(port, () => console.log(`DreamCars Server running on ${port}`));
-
-// 637fbae37d29c05a063ca3d2
-// 637fbae37d29c05a063ca3d3
-// 637fbae37d29c05a063ca3d4
-// 637fbae37d29c05a063ca3d5
-// 637fbae37d29c05a063ca3d6
-// 637fbae37d29c05a063ca3d7
-// 637fbae37d29c05a063ca3d8
